@@ -575,3 +575,8 @@ function generateMatchesForRound(round, isReturn) {
 
     return matches;
 }
+
+window.updatePlayerNames = updatePlayerNames;
+window.calculateStandings = calculateStandings;
+window.clearAllResults = clearAllResults;
+window.clearAllData = clearAllData;

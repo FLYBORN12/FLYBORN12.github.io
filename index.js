@@ -41,6 +41,9 @@ function createMatchdays() {
             input.placeholder = '0-0';
             input.id = `match_${match.home}_${match.away}_ida`;
 
+            // Agregar evento para guardar datos automáticamente
+            input.addEventListener('input', saveData);
+
             inputDiv.appendChild(input);
             matchDiv.appendChild(teamsDiv);
             matchDiv.appendChild(inputDiv);
@@ -88,6 +91,9 @@ function createMatchdays() {
             input.placeholder = '0-0';
             input.id = `match_${match.home}_${match.away}_vuelta`;
 
+            // Agregar evento para guardar datos automáticamente
+            input.addEventListener('input', saveData);
+
             inputDiv.appendChild(input);
             matchDiv.appendChild(teamsDiv);
             matchDiv.appendChild(inputDiv);
@@ -100,11 +106,92 @@ function createMatchdays() {
     }
 }
 
+// Función para guardar datos en localStorage
+function saveData() {
+    try {
+        // Guardar nombres de jugadores
+        localStorage.setItem('tournament_players', JSON.stringify(players));
+
+        // Guardar resultados de partidos
+        const matchResults = {};
+        const matchInputs = document.querySelectorAll('.match-input');
+        
+        matchInputs.forEach(input => {
+            if (input.value.trim()) {
+                matchResults[input.id] = input.value.trim();
+            }
+        });
+
+        localStorage.setItem('tournament_results', JSON.stringify(matchResults));
+        
+        // Guardar timestamp de última actualización
+        localStorage.setItem('tournament_lastUpdate', new Date().toISOString());
+        
+        console.log('Datos guardados exitosamente');
+    } catch (error) {
+        console.error('Error al guardar datos:', error);
+    }
+}
+
+// Función para cargar datos desde localStorage
+function loadData() {
+    try {
+        // Cargar nombres de jugadores
+        const savedPlayers = localStorage.getItem('tournament_players');
+        if (savedPlayers) {
+            const loadedPlayers = JSON.parse(savedPlayers);
+            if (Array.isArray(loadedPlayers) && loadedPlayers.length === 12) {
+                players = loadedPlayers;
+                
+                // Actualizar inputs de nombres de jugadores
+                for (let i = 1; i <= 12; i++) {
+                    const input = document.getElementById(`player${i}`);
+                    if (input) {
+                        input.value = players[i - 1];
+                    }
+                }
+            }
+        }
+
+        // Cargar resultados de partidos
+        const savedResults = localStorage.getItem('tournament_results');
+        if (savedResults) {
+            const matchResults = JSON.parse(savedResults);
+            
+            // Esperar un momento para que se creen los elementos
+            setTimeout(() => {
+                Object.keys(matchResults).forEach(matchId => {
+                    const input = document.getElementById(matchId);
+                    if (input) {
+                        input.value = matchResults[matchId];
+                    }
+                });
+                
+                // Calcular tabla automáticamente si hay resultados
+                if (Object.keys(matchResults).length > 0) {
+                    calculateStandings();
+                }
+            }, 100);
+        }
+
+        // Mostrar información de última actualización
+        const lastUpdate = localStorage.getItem('tournament_lastUpdate');
+        if (lastUpdate) {
+            console.log('Datos cargados. Última actualización:', new Date(lastUpdate).toLocaleString());
+        }
+
+    } catch (error) {
+        console.error('Error al cargar datos:', error);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Inicializar las jornadas al cargar la página
     createMatchdays();
+    
+    // Cargar datos guardados
+    loadData();
 });
-
 
 function updatePlayerNames() {
     for (let i = 1; i <= 12; i++) {
@@ -114,6 +201,14 @@ function updatePlayerNames() {
         }
     }
     createMatchdays();
+    
+    // Recargar datos después de recrear las jornadas
+    setTimeout(() => {
+        loadData();
+    }, 100);
+    
+    // Guardar los nuevos nombres
+    saveData();
 }
 
 function calculateStandings() {
@@ -216,6 +311,9 @@ function calculateStandings() {
                 `;
         tbody.appendChild(row);
     });
+
+    // Guardar datos después de calcular la tabla
+    saveData();
 }
 
 function clearAllResults() {
@@ -227,6 +325,68 @@ function clearAllResults() {
         // Limpiar tabla de posiciones
         const tbody = document.getElementById('standingsBody');
         tbody.innerHTML = '<tr><td colspan="10">Ingresa los resultados y presiona "Calcular Tabla de Posiciones"</td></tr>';
+
+        // Limpiar localStorage
+        localStorage.removeItem('tournament_results');
+        localStorage.removeItem('tournament_lastUpdate');
+        
+        console.log('Todos los resultados han sido eliminados');
+    }
+}
+
+// Función para limpiar completamente todos los datos guardados
+function clearAllData() {
+    if (confirm('¿Estás seguro de que quieres eliminar TODOS los datos guardados (incluyendo nombres de jugadores)?')) {
+        // Limpiar todos los datos del localStorage
+        localStorage.removeItem('tournament_players');
+        localStorage.removeItem('tournament_results');
+        localStorage.removeItem('tournament_lastUpdate');
+        
+        // Resetear nombres de jugadores
+        players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 'Jugador 6',
+            'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10', 'Jugador 11', 'Jugador 12'];
+        
+        // Actualizar inputs de nombres
+        for (let i = 1; i <= 12; i++) {
+            const input = document.getElementById(`player${i}`);
+            if (input) {
+                input.value = players[i - 1];
+            }
+        }
+        
+        // Recrear jornadas y limpiar resultados
+        createMatchdays();
+        
+        // Limpiar tabla de posiciones
+        const tbody = document.getElementById('standingsBody');
+        tbody.innerHTML = '<tr><td colspan="10">Ingresa los resultados y presiona "Calcular Tabla de Posiciones"</td></tr>';
+        
+        console.log('Todos los datos han sido eliminados');
+    }
+}
+
+// Función para exportar datos (útil para respaldo)
+function exportData() {
+    try {
+        const data = {
+            players: players,
+            results: JSON.parse(localStorage.getItem('tournament_results') || '{}'),
+            lastUpdate: localStorage.getItem('tournament_lastUpdate'),
+            exportDate: new Date().toISOString()
+        };
+        
+        const dataStr = JSON.stringify(data, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `torneo_backup_${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        
+        console.log('Datos exportados exitosamente');
+    } catch (error) {
+        console.error('Error al exportar datos:', error);
+        alert('Error al exportar los datos');
     }
 }
 

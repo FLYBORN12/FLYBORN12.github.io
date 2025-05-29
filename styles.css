@@ -1,0 +1,164 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 30px;
+}
+
+.info {
+    background: #e8f4fd;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    border-left: 4px solid #3498db;
+}
+
+.section {
+    margin-bottom: 30px;
+}
+
+h2 {
+    color: #34495e;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 5px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+th,
+td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
+
+th {
+    background-color: #3498db;
+    color: white;
+    font-weight: bold;
+}
+
+.player-name {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+.match-cell {
+    background-color: #fff;
+    min-width: 80px;
+}
+
+.vs-cell {
+    background-color: #ecf0f1;
+}
+
+.results-table th {
+    background-color: #27ae60;
+}
+
+.results-table .position {
+    background-color: #f39c12;
+    color: white;
+    font-weight: bold;
+}
+
+input[type="number"] {
+    width: 30px;
+    border: 1px solid #ddd;
+    padding: 2px;
+    text-align: center;
+}
+
+.calculate-btn {
+    background-color: #3498db;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin: 10px 5px;
+}
+
+.calculate-btn:hover {
+    background-color: #2980b9;
+}
+
+.matchday {
+    background: white;
+    border: 2px solid #3498db;
+    border-radius: 10px;
+    margin: 15px 0;
+    padding: 15px;
+}
+
+.matchday-header {
+    background: #3498db;
+    color: white;
+    padding: 10px 15px;
+    margin: -15px -15px 15px -15px;
+    border-radius: 8px 8px 0 0;
+    font-weight: bold;
+    font-size: 18px;
+    text-align: center;
+}
+
+.matches-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+}
+
+.match {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.match-teams {
+    font-weight: bold;
+    color: #2c3e50;
+    flex: 1;
+}
+
+.match-input {
+    width: 60px;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.phase-header {
+    background: #27ae60;
+    color: white;
+    padding: 10px;
+    margin: 20px 0 10px 0;
+    border-radius: 5px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 20px;
+}

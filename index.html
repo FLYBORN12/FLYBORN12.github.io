@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torneo FIFA - DWH</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="index.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🏆 Torneo FIFA - DWH</h1>
+        
+        <div class="info">
+            <strong>Información del Torneo:</strong><br>
+            • 11 Participantes +1 Bot<br>
+            • Abra 1 bot para completar 12 Participantes, Dificultad: Pendiente<br>
+            • Todos contra todos (ida y vuelta)<br>
+            • Total de partidos: 132 (66 ida + 66 vuelta)<br>
+            • Cada jugador juega 22 partidos (11 oponentes × 2)<br>
+            • Sistema de puntos: Victoria = 3 pts, Empate = 1 pt, Derrota = 0 pts<br>
+            • Premio Ganador: 100k<br>
+        </div>
+
+        <div class="section">
+            <h2>👥 Participantes</h2>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="player1" placeholder="Jugador 1" value="Jugador 1">
+                <input type="text" id="player2" placeholder="Jugador 2" value="Jugador 2">
+                <input type="text" id="player3" placeholder="Jugador 3" value="Jugador 3">
+                <input type="text" id="player4" placeholder="Jugador 4" value="Jugador 4">
+                <input type="text" id="player5" placeholder="Jugador 5" value="Jugador 5">
+                <input type="text" id="player6" placeholder="Jugador 6" value="Jugador 6">
+                <input type="text" id="player7" placeholder="Jugador 7" value="Jugador 7">
+                <input type="text" id="player8" placeholder="Jugador 8" value="Jugador 8">
+                <input type="text" id="player9" placeholder="Jugador 9" value="Jugador 9">
+                <input type="text" id="player10" placeholder="Jugador 10" value="Jugador 10">
+                <input type="text" id="player11" placeholder="Jugador 11" value="Jugador 11">
+                <input type="text" id="player12" placeholder="Jugador 12" value="Jugador 12">
+            </div>
+            <button class="calculate-btn" onclick="updatePlayerNames()">Actualizar Nombres</button>
+        </div>
+
+        <div class="section">
+            <h2>📅 Calendario de Partidos por Jornadas</h2>
+            <p><strong>Instrucciones:</strong> Ingresa los resultados en formato "Goles Local - Goles Visitante" (ej: 2-1)</p>
+            <div id="matchdayContainer">
+            </div>
+        </div>
+
+        <div class="section">
+            <button class="calculate-btn" onclick="calculateStandings()">Calcular Tabla de Posiciones</button>
+            <button class="calculate-btn" onclick="clearAllResults()" style="background-color: #e74c3c;">Limpiar Resultados</button>
+        </div>
+
+        <div class="section">
+            <h2>🏁 Tabla de Posiciones</h2>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Pos</th>
+                        <th>Jugador</th>
+                        <th>PJ</th>
+                        <th>PG</th>
+                        <th>PE</th>
+                        <th>PP</th>
+                        <th>GF</th>
+                        <th>GC</th>
+                        <th>DG</th>
+                        <th>Pts</th>
+                    </tr>
+                </thead>
+                <tbody id="standingsBody">
+                    <tr><td colspan="10">Ingresa los resultados y presiona "Calcular Tabla de Posiciones"</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body >
+</html >

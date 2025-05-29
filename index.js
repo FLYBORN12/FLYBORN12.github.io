@@ -1,5 +1,28 @@
+// Configuración de Firebase
+const firebaseConfig = {
+    apiKey: "AIzaSyA2BRSLAelEa5qPdHqqjkKNtU3bgal7h_c",
+    authDomain: "torneodwh.firebaseapp.com",
+    projectId: "torneodwh",
+    storageBucket: "torneodwh.firebasestorage.app",
+    messagingSenderId: "336157608486",
+    appId: "1:336157608486:web:eb32c2c5852a12ba6534e7",
+    measurementId: "G-1PZNK22XQ1"
+};
+
+// Inicializar Firebase
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ID del documento del torneo (puedes cambiarlo si quieres múltiples torneos)
+const TOURNAMENT_ID = 'torneo-principal';
+
 let players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 'Jugador 6',
     'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10', 'Jugador 11', 'Jugador 12'];
+
+let isLoading = false;
 
 function createMatchdays() {
     const container = document.getElementById('matchdayContainer');
@@ -42,7 +65,7 @@ function createMatchdays() {
             input.id = `match_${match.home}_${match.away}_ida`;
 
             // Agregar evento para guardar datos automáticamente
-            input.addEventListener('input', saveData);
+            input.addEventListener('input', debounce(saveDataToFirebase, 1000));
 
             inputDiv.appendChild(input);
             matchDiv.appendChild(teamsDiv);
@@ -92,7 +115,7 @@ function createMatchdays() {
             input.id = `match_${match.home}_${match.away}_vuelta`;
 
             // Agregar evento para guardar datos automáticamente
-            input.addEventListener('input', saveData);
+            input.addEventListener('input', debounce(saveDataToFirebase, 1000));
 
             inputDiv.appendChild(input);
             matchDiv.appendChild(teamsDiv);
@@ -106,13 +129,27 @@ function createMatchdays() {
     }
 }
 
-// Función para guardar datos en localStorage
-function saveData() {
-    try {
-        // Guardar nombres de jugadores
-        localStorage.setItem('tournament_players', JSON.stringify(players));
+// Función debounce para evitar demasiadas escrituras a Firebase
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
-        // Guardar resultados de partidos
+// Función para guardar datos en Firebase
+async function saveDataToFirebase() {
+    if (isLoading) return; // Evitar guardar mientras se están cargando datos
+    
+    try {
+        showStatus('Guardando...', 'loading');
+        
+        // Recopilar resultados de partidos
         const matchResults = {};
         const matchInputs = document.querySelectorAll('.match-input');
         
@@ -122,26 +159,54 @@ function saveData() {
             }
         });
 
-        localStorage.setItem('tournament_results', JSON.stringify(matchResults));
+        // Guardar en Firebase
+        const tournamentRef = doc(db, 'tournaments', TOURNAMENT_ID);
+        await updateDoc(tournamentRef, {
+            players: players,
+            matches: matchResults,
+            lastUpdate: new Date()
+        });
+
+        showStatus('Guardado ✓', 'success');
         
-        // Guardar timestamp de última actualización
-        localStorage.setItem('tournament_lastUpdate', new Date().toISOString());
-        
-        console.log('Datos guardados exitosamente');
     } catch (error) {
         console.error('Error al guardar datos:', error);
+        showStatus('Error al guardar', 'error');
+        
+        // Si el documento no existe, créalo
+        if (error.code === 'not-found') {
+            try {
+                const tournamentRef = doc(db, 'tournaments', TOURNAMENT_ID);
+                await setDoc(tournamentRef, {
+                    players: players,
+                    matches: {},
+                    lastUpdate: new Date(),
+                    createdAt: new Date()
+                });
+                showStatus('Torneo creado ✓', 'success');
+            } catch (createError) {
+                console.error('Error al crear documento:', createError);
+                showStatus('Error al crear torneo', 'error');
+            }
+        }
     }
 }
 
-// Función para cargar datos desde localStorage
-function loadData() {
+// Función para cargar datos desde Firebase
+async function loadDataFromFirebase() {
     try {
-        // Cargar nombres de jugadores
-        const savedPlayers = localStorage.getItem('tournament_players');
-        if (savedPlayers) {
-            const loadedPlayers = JSON.parse(savedPlayers);
-            if (Array.isArray(loadedPlayers) && loadedPlayers.length === 12) {
-                players = loadedPlayers;
+        isLoading = true;
+        showStatus('Cargando datos...', 'loading');
+        
+        const tournamentRef = doc(db, 'tournaments', TOURNAMENT_ID);
+        const docSnap = await getDoc(tournamentRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            // Cargar nombres de jugadores
+            if (data.players && Array.isArray(data.players) && data.players.length === 12) {
+                players = data.players;
                 
                 // Actualizar inputs de nombres de jugadores
                 for (let i = 1; i <= 12; i++) {
@@ -151,64 +216,154 @@ function loadData() {
                     }
                 }
             }
-        }
 
-        // Cargar resultados de partidos
-        const savedResults = localStorage.getItem('tournament_results');
-        if (savedResults) {
-            const matchResults = JSON.parse(savedResults);
-            
-            // Esperar un momento para que se creen los elementos
-            setTimeout(() => {
-                Object.keys(matchResults).forEach(matchId => {
-                    const input = document.getElementById(matchId);
-                    if (input) {
-                        input.value = matchResults[matchId];
+            // Cargar resultados de partidos
+            if (data.matches) {
+                setTimeout(() => {
+                    Object.keys(data.matches).forEach(matchId => {
+                        const input = document.getElementById(matchId);
+                        if (input) {
+                            input.value = data.matches[matchId];
+                        }
+                    });
+                    
+                    // Calcular tabla automáticamente si hay resultados
+                    if (Object.keys(data.matches).length > 0) {
+                        calculateStandings();
                     }
-                });
-                
-                // Calcular tabla automáticamente si hay resultados
-                if (Object.keys(matchResults).length > 0) {
-                    calculateStandings();
-                }
-            }, 100);
-        }
+                    
+                    isLoading = false;
+                    showStatus('Datos cargados ✓', 'success');
+                }, 100);
+            } else {
+                isLoading = false;
+                showStatus('Listo', 'success');
+            }
 
-        // Mostrar información de última actualización
-        const lastUpdate = localStorage.getItem('tournament_lastUpdate');
-        if (lastUpdate) {
-            console.log('Datos cargados. Última actualización:', new Date(lastUpdate).toLocaleString());
+        } else {
+            // Crear documento inicial
+            const tournamentRef = doc(db, 'tournaments', TOURNAMENT_ID);
+            await setDoc(tournamentRef, {
+                players: players,
+                matches: {},
+                lastUpdate: new Date(),
+                createdAt: new Date()
+            });
+            
+            isLoading = false;
+            showStatus('Torneo inicializado ✓', 'success');
         }
 
     } catch (error) {
         console.error('Error al cargar datos:', error);
+        isLoading = false;
+        showStatus('Error al cargar datos', 'error');
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+// Función para mostrar estado de la aplicación
+function showStatus(message, type) {
+    // Crear elemento de estado si no existe
+    let statusEl = document.getElementById('firebase-status');
+    if (!statusEl) {
+        statusEl = document.createElement('div');
+        statusEl.id = 'firebase-status';
+        statusEl.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        `;
+        document.body.appendChild(statusEl);
+    }
+
+    // Aplicar estilos según el tipo
+    const styles = {
+        loading: 'background: #2196F3; color: white;',
+        success: 'background: #4CAF50; color: white;',
+        error: 'background: #f44336; color: white;'
+    };
+
+    statusEl.textContent = message;
+    statusEl.style.cssText += styles[type] || styles.success;
+
+    // Auto-ocultar después de 3 segundos (excepto loading)
+    if (type !== 'loading') {
+        setTimeout(() => {
+            if (statusEl.textContent === message) {
+                statusEl.style.opacity = '0';
+                setTimeout(() => {
+                    if (statusEl.style.opacity === '0') {
+                        statusEl.remove();
+                    }
+                }, 300);
+            }
+        }, 3000);
+    }
+}
+
+// Configurar listener para cambios en tiempo real
+function setupRealtimeListener() {
+    const tournamentRef = doc(db, 'tournaments', TOURNAMENT_ID);
+    
+    onSnapshot(tournamentRef, (doc) => {
+        if (doc.exists() && !isLoading) {
+            const data = doc.data();
+            
+            // Solo actualizar si hay cambios reales
+            if (data.matches) {
+                let hasChanges = false;
+                
+                Object.keys(data.matches).forEach(matchId => {
+                    const input = document.getElementById(matchId);
+                    if (input && input.value !== data.matches[matchId]) {
+                        input.value = data.matches[matchId];
+                        hasChanges = true;
+                    }
+                });
+                
+                if (hasChanges) {
+                    calculateStandings();
+                    showStatus('Actualizado en tiempo real ✓', 'success');
+                }
+            }
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
     // Inicializar las jornadas al cargar la página
     createMatchdays();
     
-    // Cargar datos guardados
-    loadData();
+    // Cargar datos desde Firebase
+    await loadDataFromFirebase();
+    
+    // Configurar listener para cambios en tiempo real
+    setupRealtimeListener();
 });
 
-function updatePlayerNames() {
+async function updatePlayerNames() {
     for (let i = 1; i <= 12; i++) {
         const input = document.getElementById(`player${i}`);
         if (input.value.trim()) {
             players[i - 1] = input.value.trim();
         }
     }
+    
     createMatchdays();
     
     // Recargar datos después de recrear las jornadas
-    setTimeout(() => {
-        loadData();
+    setTimeout(async () => {
+        await loadDataFromFirebase();
     }, 100);
     
     // Guardar los nuevos nombres
-    saveData();
+    await saveDataToFirebase();
 }
 
 function calculateStandings() {
@@ -260,7 +415,6 @@ function calculateStandings() {
                         standings[homeIndex].won++;
                         standings[homeIndex].points += 3;
                         standings[awayIndex].lost++;
-                        // El visitante no suma puntos pero sí se registra la derrota
                     } else if (goalsHome === goalsAway) {
                         // Empate
                         standings[homeIndex].drawn++;
@@ -272,7 +426,6 @@ function calculateStandings() {
                         standings[awayIndex].won++;
                         standings[awayIndex].points += 3;
                         standings[homeIndex].lost++;
-                        // El local no suma puntos pero sí se registra la derrota
                     }
                 }
             }
@@ -311,82 +464,70 @@ function calculateStandings() {
                 `;
         tbody.appendChild(row);
     });
-
-    // Guardar datos después de calcular la tabla
-    saveData();
 }
 
-function clearAllResults() {
+async function clearAllResults() {
     if (confirm('¿Estás seguro de que quieres limpiar todos los resultados?')) {
-        // Limpiar inputs del calendario de jornadas
-        const matchInputs = document.querySelectorAll('.match-input');
-        matchInputs.forEach(input => input.value = '');
+        try {
+            // Limpiar inputs del calendario de jornadas
+            const matchInputs = document.querySelectorAll('.match-input');
+            matchInputs.forEach(input => input.value = '');
 
-        // Limpiar tabla de posiciones
-        const tbody = document.getElementById('standingsBody');
-        tbody.innerHTML = '<tr><td colspan="10">Ingresa los resultados y presiona "Calcular Tabla de Posiciones"</td></tr>';
+            // Limpiar tabla de posiciones
+            const tbody = document.getElementById('standingsBody');
+            tbody.innerHTML = '<tr><td colspan="10">Ingresa los resultados y presiona "Calcular Tabla de Posiciones"</td></tr>';
 
-        // Limpiar localStorage
-        localStorage.removeItem('tournament_results');
-        localStorage.removeItem('tournament_lastUpdate');
-        
-        console.log('Todos los resultados han sido eliminados');
-    }
-}
+            // Limpiar en Firebase
+            const tournamentRef = doc(db, 'tournaments', TOURNAMENT_ID);
+            await updateDoc(tournamentRef, {
+                matches: {},
+                lastUpdate: new Date()
+            });
 
-// Función para limpiar completamente todos los datos guardados
-function clearAllData() {
-    if (confirm('¿Estás seguro de que quieres eliminar TODOS los datos guardados (incluyendo nombres de jugadores)?')) {
-        // Limpiar todos los datos del localStorage
-        localStorage.removeItem('tournament_players');
-        localStorage.removeItem('tournament_results');
-        localStorage.removeItem('tournament_lastUpdate');
-        
-        // Resetear nombres de jugadores
-        players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 'Jugador 6',
-            'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10', 'Jugador 11', 'Jugador 12'];
-        
-        // Actualizar inputs de nombres
-        for (let i = 1; i <= 12; i++) {
-            const input = document.getElementById(`player${i}`);
-            if (input) {
-                input.value = players[i - 1];
-            }
+            showStatus('Resultados eliminados ✓', 'success');
+        } catch (error) {
+            console.error('Error al limpiar resultados:', error);
+            showStatus('Error al limpiar', 'error');
         }
-        
-        // Recrear jornadas y limpiar resultados
-        createMatchdays();
-        
-        // Limpiar tabla de posiciones
-        const tbody = document.getElementById('standingsBody');
-        tbody.innerHTML = '<tr><td colspan="10">Ingresa los resultados y presiona "Calcular Tabla de Posiciones"</td></tr>';
-        
-        console.log('Todos los datos han sido eliminados');
     }
 }
 
-// Función para exportar datos (útil para respaldo)
-function exportData() {
-    try {
-        const data = {
-            players: players,
-            results: JSON.parse(localStorage.getItem('tournament_results') || '{}'),
-            lastUpdate: localStorage.getItem('tournament_lastUpdate'),
-            exportDate: new Date().toISOString()
-        };
-        
-        const dataStr = JSON.stringify(data, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(dataBlob);
-        link.download = `torneo_backup_${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
-        
-        console.log('Datos exportados exitosamente');
-    } catch (error) {
-        console.error('Error al exportar datos:', error);
-        alert('Error al exportar los datos');
+async function clearAllData() {
+    if (confirm('¿Estás seguro de que quieres eliminar TODOS los datos guardados (incluyendo nombres de jugadores)?')) {
+        try {
+            // Resetear nombres de jugadores
+            players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 'Jugador 6',
+                'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10', 'Jugador 11', 'Jugador 12'];
+            
+            // Actualizar inputs de nombres
+            for (let i = 1; i <= 12; i++) {
+                const input = document.getElementById(`player${i}`);
+                if (input) {
+                    input.value = players[i - 1];
+                }
+            }
+            
+            // Recrear jornadas y limpiar resultados
+            createMatchdays();
+            
+            // Limpiar tabla de posiciones
+            const tbody = document.getElementById('standingsBody');
+            tbody.innerHTML = '<tr><td colspan="10">Ingresa los resultados y presiona "Calcular Tabla de Posiciones"</td></tr>';
+            
+            // Reinicializar Firebase
+            const tournamentRef = doc(db, 'tournaments', TOURNAMENT_ID);
+            await setDoc(tournamentRef, {
+                players: players,
+                matches: {},
+                lastUpdate: new Date(),
+                createdAt: new Date()
+            });
+
+            showStatus('Todos los datos eliminados ✓', 'success');
+        } catch (error) {
+            console.error('Error al eliminar datos:', error);
+            showStatus('Error al eliminar', 'error');
+        }
     }
 }
 

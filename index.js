@@ -1,3 +1,177 @@
+// admin-protection.js - Incluir al inicio de admin.html
+(function() {
+    'use strict';
+    
+    // Verificación inmediata al cargar la página
+    function checkAccess() {
+        try {
+            // Verificar si existe authManager
+            if (!window.authManager) {
+                // Si no existe, crear una versión básica para validación
+                const sessionData = sessionStorage.getItem('torneo_session');
+                const storedToken = localStorage.getItem('auth_token');
+                
+                if (!sessionData || !storedToken) {
+                    redirectToLogin();
+                    return false;
+                }
+                
+                const session = JSON.parse(sessionData);
+                
+                // Verificar rol y expiración
+                if (session.role !== 'admin' || 
+                    (session.expires && Date.now() > session.expires)) {
+                    redirectToLogin();
+                    return false;
+                }
+                
+                // Validar token
+                if (!validateToken(storedToken) || session.token !== storedToken) {
+                    redirectToLogin();
+                    return false;
+                }
+                
+            } else {
+                // Usar authManager si está disponible
+                if (!window.authManager.requireAdminAccess()) {
+                    return false;
+                }
+            }
+            
+            // Verificar token en URL como medida adicional
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlToken = urlParams.get('t');
+            const storedToken = localStorage.getItem('auth_token');
+            
+            if (urlToken && urlToken !== storedToken) {
+                console.warn('Token de URL no coincide');
+                // No bloquear, pero registrar intento sospechoso
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error('Error verificando acceso:', error);
+            redirectToLogin();
+            return false;
+        }
+    }
+    
+    // Validar token básico
+    function validateToken(token) {
+        try {
+            const decoded = atob(token);
+            const [timestamp] = decoded.split('-');
+            const now = Date.now();
+            const tokenAge = now - parseInt(timestamp);
+            return tokenAge < 86400000; // 24 horas
+        } catch {
+            return false;
+        }
+    }
+    
+    // Redirigir al login
+    function redirectToLogin() {
+        alert('Acceso denegado o sesión expirada');
+        
+        // Limpiar datos de sesión
+        sessionStorage.removeItem('torneo_session');
+        localStorage.removeItem('auth_token');
+        
+        // Redirigir
+        window.location.href = '../index.html';
+    }
+    
+    // Protección contra ataques de timing
+    function delayedCheck() {
+        setTimeout(() => {
+            if (!checkAccess()) {
+                document.body.style.display = 'none';
+            }
+        }, 100);
+    }
+    
+    // Verificación continua cada 5 minutos
+    function startSessionMonitoring() {
+        setInterval(() => {
+            if (!checkAccess()) {
+                console.log('Sesión invalidada durante monitoreo');
+            }
+        }, 300000); // 5 minutos
+    }
+    
+    // Protección contra inspección de código
+    function addSecurityMeasures() {
+        // Deshabilitar clic derecho
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+        
+        // Detectar intentos de abrir DevTools
+        let devtools = false;
+        setInterval(() => {
+            if (window.outerHeight - window.innerHeight > 200 || 
+                window.outerWidth - window.innerWidth > 200) {
+                if (!devtools) {
+                    devtools = true;
+                    console.clear();
+                    console.warn('Acceso restringido detectado');
+                }
+            } else {
+                devtools = false;
+            }
+        }, 500);
+        
+        // Limpiar console periodicamente
+        setInterval(() => {
+            console.clear();
+        }, 30000);
+    }
+    
+    // Ejecutar verificaciones
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!checkAccess()) {
+            document.body.innerHTML = '<div style="text-align:center;padding:50px;">Acceso denegado</div>';
+            return;
+        }
+        
+        delayedCheck();
+        startSessionMonitoring();
+        addSecurityMeasures();
+        
+        console.log('Acceso administrativo verificado');
+    });
+    
+    // Verificación inmediata (antes de DOMContentLoaded)
+    if (document.readyState === 'loading') {
+        if (!checkAccess()) {
+            document.addEventListener('DOMContentLoaded', () => {
+                document.body.innerHTML = '<div style="text-align:center;padding:50px;">Acceso denegado</div>';
+            });
+        }
+    } else {
+        checkAccess();
+    }
+    
+    // Protección contra manipulación de URL
+    window.addEventListener('popstate', () => {
+        checkAccess();
+    });
+    
+})();
+
+// Función de logout para admin
+function adminLogout() {
+    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+        // Limpiar datos
+        sessionStorage.removeItem('torneo_session');
+        localStorage.removeItem('auth_token');
+        
+        // Redirigir
+        window.location.href = '../index.html';
+    }
+}
+
 // Configuración de Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyA2BRSLAelEa5qPdHqqjkKNtU3bgal7h_c",

@@ -1,4 +1,7 @@
-// Configuración de Firebase (tu configuración actual)
+// auth.js - Sistema de autenticación mejorado
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
 const firebaseConfig = {
     apiKey: "AIzaSyA2BRSLAelEa5qPdHqqjkKNtU3bgal7h_c",
     authDomain: "torneodwh.firebaseapp.com",
@@ -9,14 +12,137 @@ const firebaseConfig = {
     measurementId: "G-1PZNK22XQ1"
 };
 
-// Inicializar Firebase
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Variables globales
+// Clase para manejar autenticación y tokens
+class AuthManager {
+    constructor() {
+        this.sessionKey = 'torneo_session';
+        this.tokenKey = 'auth_token';
+    }
+
+    // Generar token único para la sesión
+    generateToken() {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2);
+        const token = btoa(`${timestamp}-${random}`).replace(/[+/=]/g, '');
+        return token;
+    }
+
+    // Validar token
+    validateToken(token) {
+        try {
+            const decoded = atob(token);
+            const [timestamp] = decoded.split('-');
+            const now = Date.now();
+            const tokenAge = now - parseInt(timestamp);
+            
+            // Token válido por 24 horas (86400000 ms)
+            return tokenAge < 86400000;
+        } catch {
+            return false;
+        }
+    }
+
+    // Crear sesión de administrador
+    createAdminSession(username) {
+        const token = this.generateToken();
+        const sessionData = {
+            role: 'admin',
+            username: username,
+            token: token,
+            timestamp: Date.now(),
+            expires: Date.now() + 86400000 // 24 horas
+        };
+
+        sessionStorage.setItem(this.sessionKey, JSON.stringify(sessionData));
+        localStorage.setItem(this.tokenKey, token); // Token persistente
+        
+        return token;
+    }
+
+    // Crear sesión de usuario
+    createUserSession() {
+        const sessionData = {
+            role: 'user',
+            timestamp: Date.now()
+        };
+
+        sessionStorage.setItem(this.sessionKey, JSON.stringify(sessionData));
+    }
+
+    // Verificar sesión activa
+    isValidSession() {
+        try {
+            const sessionData = sessionStorage.getItem(this.sessionKey);
+            if (!sessionData) return false;
+
+            const session = JSON.parse(sessionData);
+            
+            // Verificar expiración
+            if (session.expires && Date.now() > session.expires) {
+                this.clearSession();
+                return false;
+            }
+
+            // Para admin, verificar token adicional
+            if (session.role === 'admin') {
+                const storedToken = localStorage.getItem(this.tokenKey);
+                return storedToken && this.validateToken(storedToken) && storedToken === session.token;
+            }
+
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    // Obtener rol del usuario
+    getUserRole() {
+        try {
+            const sessionData = sessionStorage.getItem(this.sessionKey);
+            if (!sessionData) return null;
+            
+            const session = JSON.parse(sessionData);
+            return this.isValidSession() ? session.role : null;
+        } catch {
+            return null;
+        }
+    }
+
+    // Limpiar sesión
+    clearSession() {
+        sessionStorage.removeItem(this.sessionKey);
+        localStorage.removeItem(this.tokenKey);
+    }
+
+    // Verificar acceso a página de admin
+    requireAdminAccess() {
+        const role = this.getUserRole();
+        if (role !== 'admin') {
+            alert('Acceso denegado. Redirigiendo al login.');
+            window.location.href = '../index.html';
+            return false;
+        }
+        return true;
+    }
+
+    // Verificar cualquier acceso autenticado
+    requireAuth() {
+        if (!this.isValidSession()) {
+            alert('Sesión expirada. Redirigiendo al login.');
+            window.location.href = '../index.html';
+            return false;
+        }
+        return true;
+    }
+}
+
+// Instancia global del manejador de autenticación
+const authManager = new AuthManager();
+
+// Variables globales del sistema de login
 let selectedUserType = null;
 let isLoading = false;
 
@@ -32,9 +158,9 @@ const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
 
 // Event listeners
-userBtn.addEventListener('click', () => selectUserType('user'));
-adminBtn.addEventListener('click', () => selectUserType('admin'));
-loginBtn.addEventListener('click', handleLogin);
+userBtn?.addEventListener('click', () => selectUserType('user'));
+adminBtn?.addEventListener('click', () => selectUserType('admin'));
+loginBtn?.addEventListener('click', handleLogin);
 
 // Permitir login con Enter
 document.addEventListener('keypress', (e) => {
@@ -72,15 +198,14 @@ async function handleLogin() {
         // Acceso directo para usuarios
         showStatus('Accediendo...', 'loading');
         setTimeout(() => {
+            authManager.createUserSession();
             showSuccessMessage('¡Bienvenido! Redirigiendo...');
             setTimeout(() => {
-                // Aquí redirigir a la página principal del torneo
-                window.location.href = '../views/users.html'; // o la URL de tu aplicación principal
+                window.location.href = '../views/users.html';
             }, 1500);
         }, 1000);
 
     } else if (selectedUserType === 'admin') {
-        // Validar credenciales de administrador
         await handleAdminLogin();
     }
 }
@@ -98,20 +223,18 @@ async function handleAdminLogin() {
     showStatus('Verificando credenciales...', 'loading');
 
     try {
-        // Verificar credenciales con Firebase
         const isValid = await validateAdminCredentials(username, password);
 
         if (isValid) {
+            // Crear sesión segura con token
+            const token = authManager.createAdminSession(username);
+            
             showStatus('Acceso autorizado', 'success');
             showSuccessMessage('¡Bienvenido Administrador! Redirigiendo...');
 
-            // Guardar sesión de admin (en memoria)
-            sessionStorage.setItem('userRole', 'admin');
-            sessionStorage.setItem('username', username);
-
             setTimeout(() => {
-                // Redirigir a la página de administración
-                window.location.href = '../views/admin.html'; // o la URL de administración
+                // Redirigir con parámetro de token (opcional, como verificación adicional)
+                window.location.href = `../views/admin.html?t=${token}`;
             }, 1500);
 
         } else {
@@ -130,20 +253,16 @@ async function handleAdminLogin() {
 
 async function validateAdminCredentials(username, password) {
     try {
-        // Primero, verificar si existe la configuración
         const configRef = doc(db, 'config', 'admin-settings');
         const configSnap = await getDoc(configRef);
 
         if (!configSnap.exists()) {
-            // Crear configuración inicial si no existe
             await createInitialAdminConfig();
         }
 
-        // Obtener configuración actualizada
         const updatedConfigSnap = await getDoc(configRef);
         const config = updatedConfigSnap.data();
 
-        // Validar credenciales
         return config.adminCredentials.username === username &&
             config.adminCredentials.password === password;
 
@@ -183,19 +302,16 @@ function hideMessages() {
 }
 
 function showStatus(message, type) {
-    // Remover indicador anterior si existe
     const existingStatus = document.querySelector('.status-indicator');
     if (existingStatus) {
         existingStatus.remove();
     }
 
-    // Crear nuevo indicador
     const statusEl = document.createElement('div');
     statusEl.className = `status-indicator status-${type}`;
     statusEl.textContent = message;
     document.body.appendChild(statusEl);
 
-    // Auto-remover después de 3 segundos (excepto loading)
     if (type !== 'loading') {
         setTimeout(() => {
             if (statusEl.parentNode) {
@@ -210,12 +326,17 @@ function showStatus(message, type) {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Sistema de login inicializado');
 
-    // Verificar si ya hay una sesión activa
-    const existingRole = sessionStorage.getItem('userRole');
-    if (existingRole === 'admin') {
-        showStatus('Sesión activa detectada', 'success');
-        setTimeout(() => {
-            window.location.href = 'admin-torneo.html';
-        }, 1000);
+    // Verificar sesión activa
+    if (authManager.isValidSession()) {
+        const role = authManager.getUserRole();
+        if (role === 'admin') {
+            showStatus('Sesión activa detectada', 'success');
+            setTimeout(() => {
+                window.location.href = '../views/admin.html';
+            }, 1000);
+        }
     }
 });
+
+// Exportar para uso en otras páginas
+window.authManager = authManager;

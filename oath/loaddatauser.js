@@ -1,3 +1,97 @@
+// user-protection.js - Incluir al inicio de users.html
+(function() {
+    'use strict';
+    
+    function checkUserAccess() {
+        try {
+            const sessionData = sessionStorage.getItem('torneo_session');
+            
+            if (!sessionData) {
+                redirectToLogin();
+                return false;
+            }
+            
+            const session = JSON.parse(sessionData);
+            
+            // Verificar que tenga una sesión válida (user o admin)
+            if (!session.role || !['user', 'admin'].includes(session.role)) {
+                redirectToLogin();
+                return false;
+            }
+            
+            // Si es admin, verificar token adicional
+            if (session.role === 'admin') {
+                const storedToken = localStorage.getItem('auth_token');
+                if (!storedToken || !validateToken(storedToken) || session.token !== storedToken) {
+                    redirectToLogin();
+                    return false;
+                }
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error('Error verificando acceso de usuario:', error);
+            redirectToLogin();
+            return false;
+        }
+    }
+    
+    function validateToken(token) {
+        try {
+            const decoded = atob(token);
+            const [timestamp] = decoded.split('-');
+            const now = Date.now();
+            const tokenAge = now - parseInt(timestamp);
+            return tokenAge < 86400000; // 24 horas
+        } catch {
+            return false;
+        }
+    }
+    
+    function redirectToLogin() {
+        alert('Debes iniciar sesión para acceder');
+        
+        // Limpiar datos
+        sessionStorage.removeItem('torneo_session');
+        localStorage.removeItem('auth_token');
+        
+        // Redirigir
+        window.location.href = '../index.html';
+    }
+    
+    // Verificación al cargar
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!checkUserAccess()) {
+            document.body.innerHTML = '<div style="text-align:center;padding:50px;">Acceso denegado</div>';
+            return;
+        }
+        
+        console.log('Acceso de usuario verificado');
+        
+        // Mostrar información del usuario si es necesario
+        const sessionData = JSON.parse(sessionStorage.getItem('torneo_session'));
+        if (sessionData.role === 'admin') {
+            console.log('Usuario admin accediendo como usuario');
+        }
+    });
+    
+    // Verificación inmediata
+    if (document.readyState !== 'loading') {
+        setTimeout(checkUserAccess, 0);
+    }
+    
+})();
+
+// Función de logout para usuarios
+function userLogout() {
+    if (confirm('¿Quieres cerrar sesión?')) {
+        sessionStorage.removeItem('torneo_session');
+        localStorage.removeItem('auth_token');
+        window.location.href = '../index.html';
+    }
+}
+
 const firebaseConfig = {
     apiKey: "AIzaSyA2BRSLAelEa5qPdHqqjkKNtU3bgal7h_c",
     authDomain: "torneodwh.firebaseapp.com",

@@ -199,108 +199,116 @@ let players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5',
 
 let isLoading = false;
 
-function createMatchdays() {
-    const container = document.getElementById('matchdayContainer');
-    container.innerHTML = '';
+// Función modificada para crear jornadas desde la estructura guardada
+async function createMatchdaysFromStructure() {
+    try {
+        // Obtener estructura desde Firebase
+        const tournamentRef = doc(db, 'tournaments', TOURNAMENT_ID);
+        const docSnap = await getDoc(tournamentRef);
+        
+        if (!docSnap.exists() || !docSnap.data().structure) {
+            console.log('No hay estructura guardada, generando nueva...');
+            await generateAndSaveTournamentStructure();
+            return;
+        }
+        
+        const structure = docSnap.data().structure;
+        const container = document.getElementById('matchdayContainer');
+        container.innerHTML = '';
 
-    // Fase de ida
-    const idaHeader = document.createElement('div');
-    idaHeader.className = 'phase-header';
-    idaHeader.textContent = '🏁 FASE DE IDA';
-    container.appendChild(idaHeader);
+        // Crear fase de ida
+        const idaHeader = document.createElement('div');
+        idaHeader.className = 'phase-header';
+        idaHeader.textContent = '🏁 FASE DE IDA';
+        container.appendChild(idaHeader);
 
-    // Generar jornadas de ida (9 jornadas para 10 equipos)
-    for (let matchday = 1; matchday <= 9; matchday++) {
-        const matchdayDiv = document.createElement('div');
-        matchdayDiv.className = 'matchday';
+        structure.phases.ida.forEach(round => {
+            const matchdayDiv = document.createElement('div');
+            matchdayDiv.className = 'matchday';
 
-        const header = document.createElement('div');
-        header.className = 'matchday-header';
-        header.textContent = `Jornada ${matchday} - Ida`;
+            const header = document.createElement('div');
+            header.className = 'matchday-header';
+            header.textContent = `Jornada ${round.roundNumber} - Ida`;
 
-        const matchesGrid = document.createElement('div');
-        matchesGrid.className = 'matches-grid';
+            const matchesGrid = document.createElement('div');
+            matchesGrid.className = 'matches-grid';
 
-        // Generar enfrentamientos para esta jornada usando algoritmo round-robin
-        const matches = generateMatchesForRound(matchday - 1, false);
+            round.matches.forEach(match => {
+                const matchDiv = document.createElement('div');
+                matchDiv.className = 'match';
 
-        matches.forEach(match => {
-            const matchDiv = document.createElement('div');
-            matchDiv.className = 'match';
+                const teamsDiv = document.createElement('div');
+                teamsDiv.className = 'match-teams';
+                teamsDiv.textContent = `${match.homeTeamName} vs ${match.awayTeamName}`;
 
-            const teamsDiv = document.createElement('div');
-            teamsDiv.className = 'match-teams';
-            teamsDiv.textContent = `${players[match.home]} vs ${players[match.away]}`;
+                const inputDiv = document.createElement('div');
+                const input = document.createElement('input');
+                input.className = 'match-input';
+                input.type = 'text';
+                input.placeholder = '0-0';
+                input.id = match.id;
 
-            const inputDiv = document.createElement('div');
-            const input = document.createElement('input');
-            input.className = 'match-input';
-            input.type = 'text';
-            input.placeholder = '0-0';
-            input.id = `match_${match.home}_${match.away}_ida`;
+                input.addEventListener('input', debounce(saveDataToFirebase, 1000));
 
-            // Agregar evento para guardar datos automáticamente
-            input.addEventListener('input', debounce(saveDataToFirebase, 1000));
+                inputDiv.appendChild(input);
+                matchDiv.appendChild(teamsDiv);
+                matchDiv.appendChild(inputDiv);
+                matchesGrid.appendChild(matchDiv);
+            });
 
-            inputDiv.appendChild(input);
-            matchDiv.appendChild(teamsDiv);
-            matchDiv.appendChild(inputDiv);
-            matchesGrid.appendChild(matchDiv);
+            matchdayDiv.appendChild(header);
+            matchdayDiv.appendChild(matchesGrid);
+            container.appendChild(matchdayDiv);
         });
 
-        matchdayDiv.appendChild(header);
-        matchdayDiv.appendChild(matchesGrid);
-        container.appendChild(matchdayDiv);
-    }
+        // Crear fase de vuelta
+        const vueltaHeader = document.createElement('div');
+        vueltaHeader.className = 'phase-header';
+        vueltaHeader.textContent = '🔄 FASE DE VUELTA';
+        container.appendChild(vueltaHeader);
 
-    // Fase de vuelta
-    const vueltaHeader = document.createElement('div');
-    vueltaHeader.className = 'phase-header';
-    vueltaHeader.textContent = '🔄 FASE DE VUELTA';
-    container.appendChild(vueltaHeader);
+        structure.phases.vuelta.forEach(round => {
+            const matchdayDiv = document.createElement('div');
+            matchdayDiv.className = 'matchday';
 
-    // Generar jornadas de vuelta (9 jornadas para 10 equipos)
-    for (let matchday = 1; matchday <= 9; matchday++) {
-        const matchdayDiv = document.createElement('div');
-        matchdayDiv.className = 'matchday';
+            const header = document.createElement('div');
+            header.className = 'matchday-header';
+            header.textContent = `Jornada ${round.roundNumber} - Vuelta`;
 
-        const header = document.createElement('div');
-        header.className = 'matchday-header';
-        header.textContent = `Jornada ${matchday + 9} - Vuelta`;
+            const matchesGrid = document.createElement('div');
+            matchesGrid.className = 'matches-grid';
 
-        const matchesGrid = document.createElement('div');
-        matchesGrid.className = 'matches-grid';
+            round.matches.forEach(match => {
+                const matchDiv = document.createElement('div');
+                matchDiv.className = 'match';
 
-        // Generar enfrentamientos para esta jornada (invertidos)
-        const matches = generateMatchesForRound(matchday - 1, true);
+                const teamsDiv = document.createElement('div');
+                teamsDiv.className = 'match-teams';
+                teamsDiv.textContent = `${match.homeTeamName} vs ${match.awayTeamName}`;
 
-        matches.forEach(match => {
-            const matchDiv = document.createElement('div');
-            matchDiv.className = 'match';
+                const inputDiv = document.createElement('div');
+                const input = document.createElement('input');
+                input.className = 'match-input';
+                input.type = 'text';
+                input.placeholder = '0-0';
+                input.id = match.id;
 
-            const teamsDiv = document.createElement('div');
-            teamsDiv.className = 'match-teams';
-            teamsDiv.textContent = `${players[match.home]} vs ${players[match.away]}`;
+                input.addEventListener('input', debounce(saveDataToFirebase, 1000));
 
-            const inputDiv = document.createElement('div');
-            const input = document.createElement('input');
-            input.className = 'match-input';
-            input.type = 'text';
-            input.placeholder = '0-0';
-            input.id = `match_${match.home}_${match.away}_vuelta`;
+                inputDiv.appendChild(input);
+                matchDiv.appendChild(teamsDiv);
+                matchDiv.appendChild(inputDiv);
+                matchesGrid.appendChild(matchDiv);
+            });
 
-            // Agregar evento para guardar datos automáticamente
-            input.addEventListener('input', debounce(saveDataToFirebase, 1000));
-
-            inputDiv.appendChild(input);
-            matchDiv.appendChild(teamsDiv);
-            matchDiv.appendChild(inputDiv);
-            matchesGrid.appendChild(matchDiv);
+            matchdayDiv.appendChild(header);
+            matchdayDiv.appendChild(matchesGrid);
+            container.appendChild(matchdayDiv);
         });
 
-        matchdayDiv.appendChild(header);
-        matchdayDiv.appendChild(matchesGrid);
-        container.appendChild(matchdayDiv);
+    } catch (error) {
+        console.error('Error creando jornadas desde estructura:', error);
+        showStatus('Error cargando estructura', 'error');
     }
 }
 
@@ -511,9 +519,83 @@ function setupRealtimeListener() {
     });
 }
 
+
+async function generateAndSaveTournamentStructure() {
+    try {
+        showStatus('Generando estructura del torneo...', 'loading');
+        
+        const tournamentStructure = {
+            players: players,
+            phases: {
+                ida: [],
+                vuelta: []
+            },
+            totalRounds: 9, // Para 10 jugadores
+            matchesPerRound: 5,
+            lastGenerated: new Date()
+        };
+
+        // Generar todas las jornadas de ida
+        for (let round = 0; round < 9; round++) {
+            const matches = generateMatchesForRound(round, false);
+            const roundData = {
+                roundNumber: round + 1,
+                phase: 'ida',
+                matches: matches.map(match => ({
+                    id: `match_${match.home}_${match.away}_ida`,
+                    homeTeam: match.home,
+                    awayTeam: match.away,
+                    homeTeamName: players[match.home],
+                    awayTeamName: players[match.away],
+                    result: null,
+                    status: 'pending'
+                }))
+            };
+            tournamentStructure.phases.ida.push(roundData);
+        }
+
+        // Generar todas las jornadas de vuelta
+        for (let round = 0; round < 9; round++) {
+            const matches = generateMatchesForRound(round, true);
+            const roundData = {
+                roundNumber: round + 10, // Jornadas 10-18
+                phase: 'vuelta',
+                matches: matches.map(match => ({
+                    id: `match_${match.home}_${match.away}_vuelta`,
+                    homeTeam: match.home,
+                    awayTeam: match.away,
+                    homeTeamName: players[match.home],
+                    awayTeamName: players[match.away],
+                    result: null,
+                    status: 'pending'
+                }))
+            };
+            tournamentStructure.phases.vuelta.push(roundData);
+        }
+
+        // Guardar en Firebase
+        const tournamentRef = doc(db, 'tournaments', TOURNAMENT_ID);
+        await updateDoc(tournamentRef, {
+            structure: tournamentStructure,
+            structureGenerated: true,
+            lastStructureUpdate: new Date()
+        });
+
+        showStatus('Estructura del torneo guardada ✓', 'success');
+        
+        // Recrear la vista del admin con la nueva estructura
+        await createMatchdaysFromStructure();
+        
+    } catch (error) {
+        console.error('Error generando estructura:', error);
+        showStatus('Error al generar estructura', 'error');
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Inicializar las jornadas al cargar la página
-    createMatchdays();
+    createMatchdaysFromStructure();
     
     // Cargar datos desde Firebase
     await loadDataFromFirebase();
@@ -530,16 +612,24 @@ async function updatePlayerNames() {
         }
     }
     
-    createMatchdays();
+    // Regenerar estructura completa con nuevos nombres
+    await generateAndSaveTournamentStructure();
     
-    // Recargar datos después de recrear las jornadas
-    setTimeout(async () => {
-        await loadDataFromFirebase();
-    }, 100);
-    
-    // Guardar los nuevos nombres
+    // Guardar también en el formato anterior para compatibilidad
     await saveDataToFirebase();
 }
+
+// Modificar la inicialización del admin
+document.addEventListener('DOMContentLoaded', async () => {
+    // Cargar datos desde Firebase
+    await loadDataFromFirebase();
+    
+    // Crear jornadas desde estructura (o generarlas si no existen)
+    await createMatchdaysFromStructure();
+    
+    // Configurar listener para cambios en tiempo real
+    setupRealtimeListener();
+});
 
 function calculateStandings() {
     const standings = players.map((player, index) => ({
@@ -683,7 +773,7 @@ async function clearAllData() {
             }
             
             // Recrear jornadas y limpiar resultados
-            createMatchdays();
+            createMatchdaysFromStructure();
             
             // Limpiar tabla de posiciones
             const tbody = document.getElementById('standingsBody');

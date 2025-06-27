@@ -160,7 +160,7 @@ async function loadDataFromFirebase() {
             displayParticipants();
 
             // Crear vista del calendario
-            createMatchdaysView();
+            createMatchdaysViewFromStructure();
 
             // Cargar resultados de partidos
             if (data.matches) {
@@ -198,96 +198,110 @@ function displayParticipants() {
     });
 }
 
-function createMatchdaysView() {
-    const container = document.getElementById('matchdayContainer');
-    container.innerHTML = '';
+async function createMatchdaysViewFromStructure() {
+    try {
+        const tournamentRef = db.collection('tournaments').doc(TOURNAMENT_ID);
+        const docSnap = await tournamentRef.get();
 
-    // Fase de ida
-    const idaHeader = document.createElement('div');
-    idaHeader.className = 'phase-header';
-    idaHeader.textContent = '🏁 FASE DE IDA';
-    container.appendChild(idaHeader);
+        if (!docSnap.exists || !docSnap.data().structure) {
+            showStatus('El admin debe generar la estructura del torneo primero', 'error');
+            return;
+        }
 
-    // CAMBIO: Para 10 jugadores necesitamos 9 jornadas (n-1)
-    for (let matchday = 1; matchday <= 9; matchday++) {
-        const matchdayDiv = document.createElement('div');
-        matchdayDiv.className = 'matchday';
+        const structure = docSnap.data().structure;
+        const container = document.getElementById('matchdayContainer');
+        container.innerHTML = '';
 
-        const header = document.createElement('div');
-        header.className = 'matchday-header';
-        header.textContent = `Jornada ${matchday} - Ida`;
+        // Actualizar jugadores desde la estructura
+        if (structure.players) {
+            players = structure.players;
+        }
 
-        const matchesGrid = document.createElement('div');
-        matchesGrid.className = 'matches-grid';
+        // Crear fase de ida
+        const idaHeader = document.createElement('div');
+        idaHeader.className = 'phase-header';
+        idaHeader.textContent = '🏁 FASE DE IDA';
+        container.appendChild(idaHeader);
 
-        // Generar enfrentamientos para esta jornada
-        const matches = generateMatchesForRound(matchday - 1, false);
+        structure.phases.ida.forEach(round => {
+            const matchdayDiv = document.createElement('div');
+            matchdayDiv.className = 'matchday';
 
-        matches.forEach(match => {
-            const matchDiv = document.createElement('div');
-            matchDiv.className = 'match';
+            const header = document.createElement('div');
+            header.className = 'matchday-header';
+            header.textContent = `Jornada ${round.roundNumber} - Ida`;
 
-            const teamsDiv = document.createElement('div');
-            teamsDiv.className = 'match-teams';
-            teamsDiv.textContent = `${players[match.home]} vs ${players[match.away]}`;
+            const matchesGrid = document.createElement('div');
+            matchesGrid.className = 'matches-grid';
 
-            const resultDiv = document.createElement('div');
-            resultDiv.className = 'match-result pending';
-            resultDiv.textContent = 'Pendiente';
-            resultDiv.id = `result_${match.home}_${match.away}_ida`;
+            round.matches.forEach(match => {
+                const matchDiv = document.createElement('div');
+                matchDiv.className = 'match';
 
-            matchDiv.appendChild(teamsDiv);
-            matchDiv.appendChild(resultDiv);
-            matchesGrid.appendChild(matchDiv);
+                const teamsDiv = document.createElement('div');
+                teamsDiv.className = 'match-teams';
+                teamsDiv.textContent = `${match.homeTeamName} vs ${match.awayTeamName}`;
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'match-result pending';
+                resultDiv.textContent = 'Pendiente';
+                resultDiv.id = `result_${match.homeTeam}_${match.awayTeam}_ida`;
+
+                matchDiv.appendChild(teamsDiv);
+                matchDiv.appendChild(resultDiv);
+                matchesGrid.appendChild(matchDiv);
+            });
+
+            matchdayDiv.appendChild(header);
+            matchdayDiv.appendChild(matchesGrid);
+            container.appendChild(matchdayDiv);
         });
 
-        matchdayDiv.appendChild(header);
-        matchdayDiv.appendChild(matchesGrid);
-        container.appendChild(matchdayDiv);
-    }
+        // Crear fase de vuelta
+        const vueltaHeader = document.createElement('div');
+        vueltaHeader.className = 'phase-header';
+        vueltaHeader.textContent = '🔄 FASE DE VUELTA';
+        container.appendChild(vueltaHeader);
 
-    // Fase de vuelta
-    const vueltaHeader = document.createElement('div');
-    vueltaHeader.className = 'phase-header';
-    vueltaHeader.textContent = '🔄 FASE DE VUELTA';
-    container.appendChild(vueltaHeader);
+        structure.phases.vuelta.forEach(round => {
+            const matchdayDiv = document.createElement('div');
+            matchdayDiv.className = 'matchday';
 
-    // CAMBIO: Para 10 jugadores necesitamos 9 jornadas de vuelta también
-    for (let matchday = 1; matchday <= 9; matchday++) {
-        const matchdayDiv = document.createElement('div');
-        matchdayDiv.className = 'matchday';
+            const header = document.createElement('div');
+            header.className = 'matchday-header';
+            header.textContent = `Jornada ${round.roundNumber} - Vuelta`;
 
-        const header = document.createElement('div');
-        header.className = 'matchday-header';
-        header.textContent = `Jornada ${matchday + 9} - Vuelta`;
+            const matchesGrid = document.createElement('div');
+            matchesGrid.className = 'matches-grid';
 
-        const matchesGrid = document.createElement('div');
-        matchesGrid.className = 'matches-grid';
+            round.matches.forEach(match => {
+                const matchDiv = document.createElement('div');
+                matchDiv.className = 'match';
 
-        // Generar enfrentamientos para esta jornada (invertidos)
-        const matches = generateMatchesForRound(matchday - 1, true);
+                const teamsDiv = document.createElement('div');
+                teamsDiv.className = 'match-teams';
+                teamsDiv.textContent = `${match.homeTeamName} vs ${match.awayTeamName}`;
 
-        matches.forEach(match => {
-            const matchDiv = document.createElement('div');
-            matchDiv.className = 'match';
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'match-result pending';
+                resultDiv.textContent = 'Pendiente';
+                resultDiv.id = `result_${match.homeTeam}_${match.awayTeam}_vuelta`;
 
-            const teamsDiv = document.createElement('div');
-            teamsDiv.className = 'match-teams';
-            teamsDiv.textContent = `${players[match.home]} vs ${players[match.away]}`;
+                matchDiv.appendChild(teamsDiv);
+                matchDiv.appendChild(resultDiv);
+                matchesGrid.appendChild(matchDiv);
+            });
 
-            const resultDiv = document.createElement('div');
-            resultDiv.className = 'match-result pending';
-            resultDiv.textContent = 'Pendiente';
-            resultDiv.id = `result_${match.home}_${match.away}_vuelta`;
-
-            matchDiv.appendChild(teamsDiv);
-            matchDiv.appendChild(resultDiv);
-            matchesGrid.appendChild(matchDiv);
+            matchdayDiv.appendChild(header);
+            matchdayDiv.appendChild(matchesGrid);
+            container.appendChild(matchdayDiv);
         });
 
-        matchdayDiv.appendChild(header);
-        matchdayDiv.appendChild(matchesGrid);
-        container.appendChild(matchdayDiv);
+        showStatus('Vista cargada desde estructura del torneo', 'success');
+
+    } catch (error) {
+        console.error('Error cargando estructura:', error);
+        showStatus('Error al cargar vista', 'error');
     }
 }
 
@@ -410,7 +424,7 @@ function setupRealtimeListener() {
             if (data.players && JSON.stringify(data.players) !== JSON.stringify(players)) {
                 players = data.players;
                 displayParticipants();
-                createMatchdaysView();
+                createMatchdaysViewFromStructure();
             }
 
             // Actualizar resultados
@@ -429,44 +443,6 @@ function setupRealtimeListener() {
             showStatus('Datos actualizados', 'success');
         }
     });
-}
-
-function generateMatchesForRound(round, isReturn) {
-    const matches = [];
-    const numTeams = 10; // CAMBIO: Cambiado de 12 a 10
-
-    let teams = [];
-    for (let i = 0; i < numTeams; i++) {
-        teams.push(i);
-    }
-
-    const fixedTeam = teams.pop();
-    const rotatingTeams = teams;
-
-    for (let r = 0; r < round; r++) {
-        rotatingTeams.push(rotatingTeams.shift());
-    }
-
-    const halfSize = rotatingTeams.length / 2;
-
-    if (isReturn) {
-        matches.push({ home: rotatingTeams[0], away: fixedTeam });
-    } else {
-        matches.push({ home: fixedTeam, away: rotatingTeams[0] });
-    }
-
-    for (let i = 1; i < halfSize; i++) {
-        const team1 = rotatingTeams[i];
-        const team2 = rotatingTeams[rotatingTeams.length - i];
-
-        if (isReturn) {
-            matches.push({ home: team2, away: team1 });
-        } else {
-            matches.push({ home: team1, away: team2 });
-        }
-    }
-
-    return matches;
 }
 
 function showStatus(message, type) {

@@ -113,8 +113,9 @@ document.head.appendChild(script2);
 
 let app, db;
 const TOURNAMENT_ID = 'torneo-principal';
-let players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 'Jugador 6',
-    'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10', 'Jugador 11', 'Jugador 12'];
+// CAMBIO: Reducido de 12 a 10 jugadores
+let players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 
+               'Jugador 6', 'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10'];
 
 // Esperar a que Firebase se cargue
 script2.onload = function () {
@@ -150,8 +151,8 @@ async function loadDataFromFirebase() {
         if (docSnap.exists) {
             const data = docSnap.data();
 
-            // Cargar nombres de jugadores
-            if (data.players && Array.isArray(data.players) && data.players.length === 12) {
+            // CAMBIO: Cargar nombres de jugadores (ahora validamos 10 en lugar de 12)
+            if (data.players && Array.isArray(data.players) && data.players.length === 10) {
                 players = data.players;
             }
 
@@ -207,8 +208,8 @@ function createMatchdaysView() {
     idaHeader.textContent = '🏁 FASE DE IDA';
     container.appendChild(idaHeader);
 
-    // Generar jornadas de ida (11 jornadas)
-    for (let matchday = 1; matchday <= 11; matchday++) {
+    // CAMBIO: Para 10 jugadores necesitamos 9 jornadas (n-1)
+    for (let matchday = 1; matchday <= 9; matchday++) {
         const matchdayDiv = document.createElement('div');
         matchdayDiv.className = 'matchday';
 
@@ -251,14 +252,14 @@ function createMatchdaysView() {
     vueltaHeader.textContent = '🔄 FASE DE VUELTA';
     container.appendChild(vueltaHeader);
 
-    // Generar jornadas de vuelta (11 jornadas)
-    for (let matchday = 1; matchday <= 11; matchday++) {
+    // CAMBIO: Para 10 jugadores necesitamos 9 jornadas de vuelta también
+    for (let matchday = 1; matchday <= 9; matchday++) {
         const matchdayDiv = document.createElement('div');
         matchdayDiv.className = 'matchday';
 
         const header = document.createElement('div');
         header.className = 'matchday-header';
-        header.textContent = `Jornada ${matchday + 11} - Vuelta`;
+        header.textContent = `Jornada ${matchday + 9} - Vuelta`;
 
         const matchesGrid = document.createElement('div');
         matchesGrid.className = 'matches-grid';
@@ -375,11 +376,12 @@ function calculateStandings(matches) {
 
     standings.forEach((team, index) => {
         const row = document.createElement('tr');
-        if (index < 8) {
-            row.classList.add('top-eight'); // Añadir clase especial a las primeras 8 filas
+        // CAMBIO: Ajustar clasificación para 10 jugadores
+        if (index < 6) {
+            row.classList.add('top-eight'); // Los primeros 6 clasifican directamente
         }
-        if (index == 8) {
-            row.classList.add('playoffs'); // Añadir clase especial a las primeras 8 filas
+        if (index >= 6 && index < 8) {
+            row.classList.add('playoffs'); // Los puestos 7-8 van a playoffs
         }
         row.innerHTML = `
             <td class="position">${index + 1}</td>
@@ -431,7 +433,7 @@ function setupRealtimeListener() {
 
 function generateMatchesForRound(round, isReturn) {
     const matches = [];
-    const numTeams = 12;
+    const numTeams = 10; // CAMBIO: Cambiado de 12 a 10
 
     let teams = [];
     for (let i = 0; i < numTeams; i++) {

@@ -193,8 +193,9 @@ const db = getFirestore(app);
 // ID del documento del torneo (puedes cambiarlo si quieres múltiples torneos)
 const TOURNAMENT_ID = 'torneo-principal';
 
-let players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 'Jugador 6',
-    'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10', 'Jugador 11', 'Jugador 12'];
+// 10 jugadores para el torneo
+let players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 
+               'Jugador 6', 'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10'];
 
 let isLoading = false;
 
@@ -208,8 +209,8 @@ function createMatchdays() {
     idaHeader.textContent = '🏁 FASE DE IDA';
     container.appendChild(idaHeader);
 
-    // Generar jornadas de ida (11 jornadas)
-    for (let matchday = 1; matchday <= 11; matchday++) {
+    // Generar jornadas de ida (9 jornadas para 10 equipos)
+    for (let matchday = 1; matchday <= 9; matchday++) {
         const matchdayDiv = document.createElement('div');
         matchdayDiv.className = 'matchday';
 
@@ -258,14 +259,14 @@ function createMatchdays() {
     vueltaHeader.textContent = '🔄 FASE DE VUELTA';
     container.appendChild(vueltaHeader);
 
-    // Generar jornadas de vuelta (11 jornadas)
-    for (let matchday = 1; matchday <= 11; matchday++) {
+    // Generar jornadas de vuelta (9 jornadas para 10 equipos)
+    for (let matchday = 1; matchday <= 9; matchday++) {
         const matchdayDiv = document.createElement('div');
         matchdayDiv.className = 'matchday';
 
         const header = document.createElement('div');
         header.className = 'matchday-header';
-        header.textContent = `Jornada ${matchday + 11} - Vuelta`;
+        header.textContent = `Jornada ${matchday + 9} - Vuelta`;
 
         const matchesGrid = document.createElement('div');
         matchesGrid.className = 'matches-grid';
@@ -379,11 +380,11 @@ async function loadDataFromFirebase() {
             const data = docSnap.data();
             
             // Cargar nombres de jugadores
-            if (data.players && Array.isArray(data.players) && data.players.length === 12) {
+            if (data.players && Array.isArray(data.players) && data.players.length === 10) {
                 players = data.players;
                 
                 // Actualizar inputs de nombres de jugadores
-                for (let i = 1; i <= 12; i++) {
+                for (let i = 1; i <= 10; i++) {
                     const input = document.getElementById(`player${i}`);
                     if (input) {
                         input.value = players[i - 1];
@@ -522,7 +523,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function updatePlayerNames() {
-    for (let i = 1; i <= 12; i++) {
+    for (let i = 1; i <= 10; i++) {
         const input = document.getElementById(`player${i}`);
         if (input.value.trim()) {
             players[i - 1] = input.value.trim();
@@ -670,11 +671,11 @@ async function clearAllData() {
     if (confirm('¿Estás seguro de que quieres eliminar TODOS los datos guardados (incluyendo nombres de jugadores)?')) {
         try {
             // Resetear nombres de jugadores
-            players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 'Jugador 6',
-                'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10', 'Jugador 11', 'Jugador 12'];
+            players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 
+                       'Jugador 6', 'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10'];
             
             // Actualizar inputs de nombres
-            for (let i = 1; i <= 12; i++) {
+            for (let i = 1; i <= 10; i++) {
                 const input = document.getElementById(`player${i}`);
                 if (input) {
                     input.value = players[i - 1];
@@ -705,51 +706,69 @@ async function clearAllData() {
     }
 }
 
+// Algoritmo Round-Robin corregido para 10 jugadores
 function generateMatchesForRound(round, isReturn) {
-    // Algoritmo Round-Robin correcto para 12 equipos
     const matches = [];
-    const numTeams = 12;
+    const numTeams = 10;
 
-    // Crear lista de equipos (0-11)
+    // Para 10 equipos, necesitamos 9 jornadas
+    // Cada jornada tiene 5 partidos (10 equipos / 2 = 5 partidos por jornada)
+    
+    // Crear lista de equipos (0-9)
     let teams = [];
     for (let i = 0; i < numTeams; i++) {
         teams.push(i);
     }
 
-    // El último equipo (11) se queda fijo
-    const fixedTeam = teams.pop();
-    const rotatingTeams = teams; // equipos 0-10
+    // Algoritmo Round-Robin para número par de equipos
+    // Dividir en dos mitades y rotar
+    const numRounds = numTeams - 1; // 9 rondas para 10 equipos
+    const matchesPerRound = numTeams / 2; // 5 partidos por ronda
 
-    // Rotar los equipos según la jornada
-    for (let r = 0; r < round; r++) {
-        rotatingTeams.push(rotatingTeams.shift());
-    }
-
-    // Generar enfrentamientos para esta jornada
-    const halfSize = rotatingTeams.length / 2;
-
-    // Primer partido: equipo fijo vs primer equipo rotativo
-    if (isReturn) {
-        matches.push({ home: rotatingTeams[0], away: fixedTeam });
-    } else {
-        matches.push({ home: fixedTeam, away: rotatingTeams[0] });
-    }
-
-    // Resto de partidos: enfrentar equipos de ambos extremos
-    for (let i = 1; i < halfSize; i++) {
-        const team1 = rotatingTeams[i];
-        const team2 = rotatingTeams[rotatingTeams.length - i];
-
-        if (isReturn) {
-            matches.push({ home: team2, away: team1 });
-        } else {
-            matches.push({ home: team1, away: team2 });
+    // Crear matriz de todas las rondas
+    const allRounds = [];
+    for (let r = 0; r < numRounds; r++) {
+        const roundMatches = [];
+        
+        for (let i = 0; i < matchesPerRound; i++) {
+            let home, away;
+            
+            if (i === 0) {
+                // El primer equipo (0) siempre juega contra el equipo en posición r+1
+                home = 0;
+                away = (r + 1) % numTeams;
+            } else {
+                // Otros partidos usando fórmula de rotación
+                const pos1 = (r + i) % (numTeams - 1) + 1;
+                const pos2 = (r - i + numTeams - 1) % (numTeams - 1) + 1;
+                
+                home = pos1 === 0 ? numTeams - 1 : pos1;
+                away = pos2 === 0 ? numTeams - 1 : pos2;
+            }
+            
+            // Asegurar que home y away sean diferentes
+            if (home !== away) {
+                if (isReturn) {
+                    // En la vuelta, intercambiar local y visitante
+                    roundMatches.push({ home: away, away: home });
+                } else {
+                    roundMatches.push({ home: home, away: away });
+                }
+            }
         }
+        
+        allRounds.push(roundMatches);
     }
 
-    return matches;
+    // Retornar los partidos de la ronda específica
+    if (round >= 0 && round < allRounds.length) {
+        return allRounds[round];
+    }
+    
+    return [];
 }
 
+// Exponer funciones globalmente
 window.updatePlayerNames = updatePlayerNames;
 window.calculateStandings = calculateStandings;
 window.clearAllResults = clearAllResults;

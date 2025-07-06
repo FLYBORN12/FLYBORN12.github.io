@@ -1,4 +1,3 @@
-// admin-protection.js - Incluir al inicio de admin.html
 (function() {
     'use strict';
     
@@ -193,9 +192,9 @@ const db = getFirestore(app);
 // ID del documento del torneo (puedes cambiarlo si quieres múltiples torneos)
 const TOURNAMENT_ID = 'torneo-principal';
 
-// 10 jugadores para el torneo
+// 8 jugadores para el torneo
 let players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 
-               'Jugador 6', 'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10'];
+               'Jugador 6', 'Jugador 7', 'Jugador 8'];
 
 let isLoading = false;
 
@@ -388,11 +387,11 @@ async function loadDataFromFirebase() {
             const data = docSnap.data();
             
             // Cargar nombres de jugadores
-            if (data.players && Array.isArray(data.players) && data.players.length === 10) {
+            if (data.players && Array.isArray(data.players) && data.players.length === 8) {
                 players = data.players;
                 
                 // Actualizar inputs de nombres de jugadores
-                for (let i = 1; i <= 10; i++) {
+                for (let i = 1; i <= 8; i++) {
                     const input = document.getElementById(`player${i}`);
                     if (input) {
                         input.value = players[i - 1];
@@ -519,7 +518,6 @@ function setupRealtimeListener() {
     });
 }
 
-
 async function generateAndSaveTournamentStructure() {
     try {
         showStatus('Generando estructura del torneo...', 'loading');
@@ -530,13 +528,13 @@ async function generateAndSaveTournamentStructure() {
                 ida: [],
                 vuelta: []
             },
-            totalRounds: 9, // Para 10 jugadores
-            matchesPerRound: 5,
+            totalRounds: 7, // Para 8 jugadores: 7 jornadas
+            matchesPerRound: 4, // Para 8 jugadores: 4 partidos por jornada
             lastGenerated: new Date()
         };
 
         // Generar todas las jornadas de ida
-        for (let round = 0; round < 9; round++) {
+        for (let round = 0; round < 7; round++) {
             const matches = generateMatchesForRound(round, false);
             const roundData = {
                 roundNumber: round + 1,
@@ -555,10 +553,10 @@ async function generateAndSaveTournamentStructure() {
         }
 
         // Generar todas las jornadas de vuelta
-        for (let round = 0; round < 9; round++) {
+        for (let round = 0; round < 7; round++) {
             const matches = generateMatchesForRound(round, true);
             const roundData = {
-                roundNumber: round + 10, // Jornadas 10-18
+                roundNumber: round + 8, // Jornadas 8-14
                 phase: 'vuelta',
                 matches: matches.map(match => ({
                     id: `match_${match.home}_${match.away}_vuelta`,
@@ -592,7 +590,6 @@ async function generateAndSaveTournamentStructure() {
     }
 }
 
-
 document.addEventListener('DOMContentLoaded', async () => {
     // Inicializar las jornadas al cargar la página
     createMatchdaysFromStructure();
@@ -605,7 +602,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function updatePlayerNames() {
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 8; i++) {
         const input = document.getElementById(`player${i}`);
         if (input.value.trim()) {
             players[i - 1] = input.value.trim();
@@ -762,10 +759,10 @@ async function clearAllData() {
         try {
             // Resetear nombres de jugadores
             players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 
-                       'Jugador 6', 'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10'];
+                       'Jugador 6', 'Jugador 7', 'Jugador 8'];
             
             // Actualizar inputs de nombres
-            for (let i = 1; i <= 10; i++) {
+            for (let i = 1; i <= 8; i++) {
                 const input = document.getElementById(`player${i}`);
                 if (input) {
                     input.value = players[i - 1];
@@ -796,24 +793,23 @@ async function clearAllData() {
     }
 }
 
-// Algoritmo Round-Robin corregido para 10 jugadores
+// Algoritmo Round-Robin corregido para 8 jugadores
 function generateMatchesForRound(round, isReturn) {
     const matches = [];
-    const numTeams = 10;
-
-    // Para 10 equipos, necesitamos 9 jornadas
-    // Cada jornada tiene 5 partidos (10 equipos / 2 = 5 partidos por jornada)
+    const numTeams = 8;
     
-    // Crear lista de equipos (0-9)
+    // Para 8 equipos, necesitamos 7 jornadas
+    // Cada jornada tiene 4 partidos (8 equipos / 2 = 4 partidos por jornada)
+    
+    // Crear lista de equipos (0-7)
     let teams = [];
     for (let i = 0; i < numTeams; i++) {
         teams.push(i);
     }
 
     // Algoritmo Round-Robin para número par de equipos
-    // Dividir en dos mitades y rotar
-    const numRounds = numTeams - 1; // 9 rondas para 10 equipos
-    const matchesPerRound = numTeams / 2; // 5 partidos por ronda
+    const numRounds = numTeams - 1; // 7 rondas para 8 equipos
+    const matchesPerRound = numTeams / 2; // 4 partidos por ronda
 
     // Crear matriz de todas las rondas
     const allRounds = [];
@@ -824,7 +820,7 @@ function generateMatchesForRound(round, isReturn) {
             let home, away;
             
             if (i === 0) {
-                // El primer equipo (0) siempre juega contra el equipo en posición r+1
+                // El primer equipo (0) siempre está fijo
                 home = 0;
                 away = (r + 1) % numTeams;
             } else {
@@ -832,8 +828,8 @@ function generateMatchesForRound(round, isReturn) {
                 const pos1 = (r + i) % (numTeams - 1) + 1;
                 const pos2 = (r - i + numTeams - 1) % (numTeams - 1) + 1;
                 
-                home = pos1 === 0 ? numTeams - 1 : pos1;
-                away = pos2 === 0 ? numTeams - 1 : pos2;
+                home = pos1;
+                away = pos2;
             }
             
             // Asegurar que home y away sean diferentes

@@ -113,9 +113,9 @@ document.head.appendChild(script2);
 
 let app, db;
 const TOURNAMENT_ID = 'torneo-principal';
-// CAMBIO: Reducido de 12 a 10 jugadores
+// CAMBIO: Reducido de 10 a 8 jugadores
 let players = ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5', 
-               'Jugador 6', 'Jugador 7', 'Jugador 8', 'Jugador 9', 'Jugador 10'];
+               'Jugador 6', 'Jugador 7', 'Jugador 8'];
 
 // Esperar a que Firebase se cargue
 script2.onload = function () {
@@ -152,7 +152,7 @@ async function loadDataFromFirebase() {
             const data = docSnap.data();
 
             // CAMBIO: Cargar nombres de jugadores (ahora validamos 10 en lugar de 12)
-            if (data.players && Array.isArray(data.players) && data.players.length === 10) {
+            if (data.players && Array.isArray(data.players) && data.players.length === 8) {
                 players = data.players;
             }
 
@@ -393,9 +393,6 @@ function calculateStandings(matches) {
         // CAMBIO: Ajustar clasificación para 10 jugadores
         if (index < 6) {
             row.classList.add('top-eight'); // Los primeros 6 clasifican directamente
-        }
-        if (index >= 6 && index < 8) {
-            row.classList.add('playoffs'); // Los puestos 7-8 van a playoffs
         }
         row.innerHTML = `
             <td class="position">${index + 1}</td>
